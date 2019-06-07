@@ -22,6 +22,7 @@ where
 import Control.Lens
 import Data.AbstractSize (HasTypeReps)
 import Data.Bimap (Bimap, empty, lookupR)
+import qualified Data.Bimap as Bimap
 import Data.Char (isAscii)
 import Data.Hashable (Hashable)
 import qualified Data.Hashable as H
@@ -33,9 +34,17 @@ import Data.Set (Set, union)
 import qualified Data.Set as Set
 import Data.Tuple (swap)
 import GHC.Generics (Generic)
+import Hedgehog (Gen)
+import qualified Hedgehog.Gen as Gen
+import qualified Hedgehog.Range as Range
 import Numeric.Natural
 
 import Control.State.Transition
+import Control.State.Transition.Generator
+  ( HasTrace
+  , initEnvGen
+  , sigGen
+  )
 
 import Ledger.Core
   ( BlockCount(..)
@@ -60,6 +69,7 @@ import Ledger.Core
   , unSlot
   )
 import qualified Ledger.Core as Core
+import           Ledger.Core.Generators (slotGen, vkGen, vkgenesisGen)
 import qualified Ledger.GlobalParams as GP
 
 import Prelude hiding (min)
@@ -889,6 +899,30 @@ instance STS UPIEND where
 
 instance Embed UPEND UPIEND where
   wrapFailed = UPENDFailure
+
+instance HasTrace UPIEND where
+
+  initEnvGen = (,,)
+    <$> slotGen 0 100000
+    <*> dms
+    <*> (BlockCount <$> Gen.integral (Range.linear 1 10000))
+   where
+    dms :: Gen (Bimap VKeyGenesis VKey)
+    dms = do
+      n <- Gen.integral (Range.linear 1 20)
+      Bimap.fromList <$> (zip
+        <$> (Gen.list (Range.singleton n) vkgenesisGen)
+        <*> (Gen.list (Range.singleton n) vkGen))
+
+  sigGen env _ = (,)
+    <$> pv
+    <*> Gen.element (Bimap.elems $ env ^. _2)
+   where
+    pv :: Gen ProtVer
+    pv = ProtVer
+      <$> Gen.integral (Range.linear (0 :: Natural) 100)
+      <*> Gen.integral (Range.linear (0 :: Natural) 100)
+      <*> Gen.integral (Range.linear (0 :: Natural) 100)
 
 data PVBUMP
 
