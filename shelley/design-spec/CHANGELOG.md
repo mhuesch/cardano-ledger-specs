@@ -1,5 +1,10 @@
 # Delegation Design Document Changelog
 
+## CURRENT
+Add multi-sig delegation. This contains a change in terminology. We now have
+stake addresses (instead of staking keys), which can either be public key hash,
+or a multi-sig script hash.
+
 ## 2019-06-07
 Update section on script addresses.
 
