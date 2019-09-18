@@ -1,0 +1,111 @@
+; Shelley Types
+
+; When you have something that is always length 2, why do you need the header?
+; Would using a map here make it cheaper?
+block =
+  [ header                     : header
+  , transaction_bodies         : [* transaction_body]
+  , transaction_witness_sets   : [* transaction_witness_set]
+  , transaction_multi_sig_maps : [* (index : uint, multi_sig_map : multi_sig_map)]
+  ]
+
+; TODO: Replace direct inlining with unwrap operator (~) for closer correspondence to Haskell types
+; Inlining the header body here to save word, but this would mean no valid CBOR instance for header body...
+header =
+  [ prev_hash        : $hash
+  , issuer_vkey      : $vkey
+  , vrf_vkey         : $vrf_vkey
+  , slot             : u64
+  , nonce            : uint
+  , nonce_proof      : $vrf_proof
+  , leader_value     : u32_rational ; TODO: Check reasonable bound with Jared and Matthias
+  , leader_proof     : $vrf_proof
+  , size             : u64
+  , block_body_hash  : $hash
+  , operational_cert : operational_cert
+  , protocol_version : protocol_version
+  , body_signature   : $kes_signature
+  ]
+
+operational_cert =
+  [ hot_vkey        : $kes_vkey
+  , cold_vkey       : $vkey
+  , sequence_number : u64
+  , kes_period      : u64
+  , sigma           : $signature
+  ]
+
+protocol_version = [u64, u64, u64] ; Is it worth using a tighter bound here?
+
+; Do we want to use a Map here? Is it actually cheaper?
+; Do we want to add extension points here?
+transaction_body =
+  { 0 : #6.258([* transaction_input])
+  , 1 : [* transaction_output]
+  , 2 : [* delegation_certificate]
+  , 3 : [* withdrawal]
+  , 4 : uint ; fee
+  , 5 : uint ; ttl
+  , 6 : update ; Can we unwrap this?
+  }
+
+; Is it okay to have this as a group? Is it valid CBOR?! Does it need to be?
+transaction_input = (transaction_id : $hash, index : uint)
+
+transaction_output = (address : address, amount : uint)
+
+address = undefined
+
+delegation_certificate =
+  (  0, credential
+  // 1, credential
+  // 2, pool_params
+  // 3, $hash, uint
+  // 4, delegation
+  // 5, $hash, $hash
+  )
+
+credential = undefined
+
+pool_params = undefined
+
+delegation = undefined
+
+withdrawal = (reward_acct : credential, amount : uint)
+
+update = undefined
+
+transaction_witness_set = undefined
+
+multi_sig_map = undefined
+
+; Crypto Types will be defined for mock and real crypto in separate files using this syntax
+
+$hash /= bytes ; TODO: Include size here
+
+$vkey /= bytes
+
+$signature /= bytes
+
+$vrf_vkey /= bytes
+
+$vrf_proof /= bytes
+
+$kes_vkey /= bytes
+
+$kes_signature /= bytes
+
+; Numeric Types
+
+; Is there actually a good reason to introduce these constraints here?
+u8  = uint .size 1
+u16 = uint .size 2
+u32 = uint .size 4
+u64 = uint .size 8
+
+u32_rational =
+  [ numerator   : u32
+  , denominator : u32
+  ]
+
+; undefined = uint
