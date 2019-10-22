@@ -15,13 +15,13 @@ header =
   [ prev_hash        : $hash
   , issuer_vkey      : $vkey
   , vrf_vkey         : $vrf_vkey
-  , slot             : u64
+  , slot             : uint
   , nonce            : uint
   , nonce_proof      : $vrf_proof
-  , leader_value     : u32_rational ; TODO: Check reasonable bound with Jared and Matthias
+  , leader_value     : rational
   , leader_proof     : $vrf_proof
-  , size             : u64
-  , block_body_hash  : $hash
+  , size             : uint
+  , block_body_hash  : $hash            ; merkle pair root
   , operational_cert : operational_cert
   , protocol_version : protocol_version
   , body_signature   : $kes_signature
@@ -30,12 +30,12 @@ header =
 operational_cert =
   [ hot_vkey        : $kes_vkey
   , cold_vkey       : $vkey
-  , sequence_number : u64
-  , kes_period      : u64
+  , sequence_number : uint
+  , kes_period      : uint
   , sigma           : $signature
   ]
 
-protocol_version = [u64, u64, u64] ; Is it worth using a tighter bound here?
+protocol_version = [uint, uint, uint] ; Is it worth using a tighter bound here?
 
 ; Do we want to use a Map here? Is it actually cheaper?
 ; Do we want to add extension points here?
@@ -44,7 +44,7 @@ transaction_body =
   , 1 : [* transaction_output]
   , 2 : [* delegation_certificate]
   , 3 : [* withdrawal]
-  , 4 : uint ; fee
+  , 4 : coin ; fee
   , 5 : uint ; ttl
   , 6 : update ; Can we unwrap this?
   }
@@ -54,26 +54,47 @@ transaction_input = (transaction_id : $hash, index : uint)
 
 transaction_output = (address : address, amount : uint)
 
-address = undefined
-
-delegation_certificate =
-  (  0, credential
-  // 1, credential
-  // 2, pool_params
-  // 3, $hash, uint
-  // 4, delegation
-  // 5, $hash, $hash
+address =
+  (  0, credential, credential  ; base address
+  // 1, credential, pointer     ; pointer address
+  // 2, credential              ; enterprise address
+  // 3, keyhash                 ; bootstrap address
   )
 
-credential = undefined
+delegation_certificate =
+  (  0, keyhash         ; stake key registration
+  // 1, keyhash         ; stake key de-registration
+  // 2                  ; stake key delegation
+      , keyhash         ; delegating key
+      , keyhash         ; key delegated to
+  // 3, keyhash, ~pool_params  ; stake pool registration
+  // 4, keyhash, epoch  ; stake pool retirement
+  // 5 ; genesis key delegation
+      , keyhash ; delegating key
+      , key     ; key delegated to
+  // 6, [* move_instantaneous_reward] ; move instantaneous rewards
+  )
 
-pool_params = undefined
+move_instantaneous_reward = ( keyhash, coin )
+pointer = (uint, uint, uint)
 
-delegation = undefined
+credential =
+  (  0, keyhash
+  // 1, scripthash
+  )
+
+coin = uint
+
+epoch = uint
+
+keyhash = $hash
+scripthash = $hash
+
+pool_params = [[* keyhash], coin, ~rational, coin, credential, $vrf_keyhash]
 
 withdrawal = (reward_acct : credential, amount : uint)
 
-update = undefined
+update = [* update_part]
 
 transaction_witness_set = undefined
 
@@ -81,13 +102,13 @@ multi_sig_map = undefined
 
 ; Crypto Types will be defined for mock and real crypto in separate files using this syntax
 
-$hash /= bytes ; TODO: Include size here
+$hash /= bytes
 
 $vkey /= bytes
 
 $signature /= bytes
 
-$vrf_vkey /= bytes
+$vrf_keyhash /= bytes
 
 $vrf_proof /= bytes
 
@@ -97,15 +118,8 @@ $kes_signature /= bytes
 
 ; Numeric Types
 
-; Is there actually a good reason to introduce these constraints here?
-u8  = uint .size 1
-u16 = uint .size 2
-u32 = uint .size 4
-u64 = uint .size 8
-
-u32_rational =
-  [ numerator   : u32
-  , denominator : u32
+rational =
+  [ numerator   : uint
+  , denominator : uint
   ]
 
-; undefined = uint
