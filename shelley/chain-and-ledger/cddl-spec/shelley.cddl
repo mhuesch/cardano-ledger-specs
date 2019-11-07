@@ -6,7 +6,6 @@ block =
   [ header                     : header
   , transaction_bodies         : [* transaction_body]
   , transaction_witness_sets   : [* transaction_witness_set]
-  , transaction_multi_sig_maps : [* (index : uint, multi_sig_map : multi_sig_map)]
   ]
 
 ; TODO: Replace direct inlining with unwrap operator (~) for closer correspondence to Haskell types
@@ -18,7 +17,7 @@ header =
   , slot             : uint
   , nonce            : uint
   , nonce_proof      : $vrf_proof
-  , leader_value     : rational
+  , leader_value     : ~rational
   , leader_proof     : $vrf_proof
   , size             : uint
   , block_body_hash  : $hash            ; merkle pair root
@@ -35,7 +34,7 @@ operational_cert =
   , sigma           : $signature
   ]
 
-protocol_version = [uint, uint, uint] ; Is it worth using a tighter bound here?
+protocol_version = [uint, uint, uint]
 
 ; Do we want to use a Map here? Is it actually cheaper?
 ; Do we want to add extension points here?
@@ -67,7 +66,7 @@ delegation_certificate =
   // 2                  ; stake key delegation
       , keyhash         ; delegating key
       , keyhash         ; key delegated to
-  // 3, keyhash, ~pool_params  ; stake pool registration
+  // 3, keyhash, pool_params  ; stake pool registration
   // 4, keyhash, epoch  ; stake pool retirement
   // 5 ; genesis key delegation
       , keyhash ; delegating key
@@ -90,15 +89,22 @@ epoch = uint
 keyhash = $hash
 scripthash = $hash
 
-pool_params = [[* keyhash], coin, ~rational, coin, credential, $vrf_keyhash]
+pool_params = [[* keyhash], coin, rational, coin, credential, $vrf_keyhash]
 
 withdrawal = (reward_acct : credential, amount : uint)
 
 update = [* update_part]
 
-transaction_witness_set = undefined
+transaction_witness_set =
+  (  0, vkeywitness
+  // 1, scripthashwitness
+  // 2, [* vkeywitness]
+  // 3, [* scripthashwitness]
+  // 4, [* vkeywitness],[* scripthashwitness]
+  )
 
-multi_sig_map = undefined
+vkeywitness = [vkey, signature]
+scripthashwitness = [scripthash, script]
 
 ; Crypto Types will be defined for mock and real crypto in separate files using this syntax
 
@@ -122,4 +128,3 @@ rational =
   [ numerator   : uint
   , denominator : uint
   ]
-
