@@ -27,6 +27,7 @@ library
                      PParams
                      EpochBoundary
                      LedgerState
+                     Serialization
                      Delegation.PoolParams
                      Delegation.Certificates
                      OCert

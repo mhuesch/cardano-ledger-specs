@@ -1,4 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE PatternSynonyms #-}
@@ -38,6 +40,8 @@ import           Ledger.Core (Relation (..))
 import           Slot (Epoch, Slot)
 import           Updates (Update)
 
+import Serialization (ToCBORGroup(..), CBORGroup(..))
+
 -- |The delegation of one stake key to another.
 data Delegation crypto = Delegation
   { _delegator :: Credential crypto
@@ -71,6 +75,7 @@ data Credential crypto =
   | KeyHashObj    { _vkeyHash      :: KeyHash crypto }
   | GenesisHashObj { _genKeyHash   :: GenKeyHash crypto }
     deriving (Show, Eq, Generic, Ord)
+    deriving ToCBOR via (CBORGroup (Credential crypto))
 
 instance NoUnexpectedThunks (Credential crypto)
 
@@ -87,6 +92,7 @@ data Addr crypto
       , _stakePtr :: Ptr
       }
   deriving (Show, Eq, Ord, Generic)
+  deriving ToCBOR via (CBORGroup (Addr crypto))
 
 instance NoUnexpectedThunks (Addr crypto)
 
@@ -150,6 +156,7 @@ deriving instance Crypto crypto => ToCBOR (TxId crypto)
 data TxIn crypto
   = TxIn (TxId crypto) Natural
   deriving (Show, Eq, Generic, Ord)
+  deriving ToCBOR via (CBORGroup (TxIn crypto))
 
 instance NoUnexpectedThunks (TxIn crypto)
 
@@ -157,6 +164,7 @@ instance NoUnexpectedThunks (TxIn crypto)
 data TxOut crypto
   = TxOut (Addr crypto) Coin
   deriving (Show, Eq, Generic, Ord)
+  deriving ToCBOR via CBORGroup (TxOut crypto)
 
 instance NoUnexpectedThunks (TxOut crypto)
 
@@ -284,21 +292,21 @@ instance
 
 instance
   (Typeable crypto, Crypto crypto)
-  => ToCBOR (TxIn crypto)
+  => ToCBORGroup (TxIn crypto)
  where
-  toCBOR (TxIn txId index) =
-    encodeListLen 2
-      <> toCBOR txId
+  toCBORGroup (TxIn txId index) =
+         toCBOR txId
       <> toCBOR index
+  listLen _ = 2
 
 instance
   (Typeable crypto, Crypto crypto)
-  => ToCBOR (TxOut crypto)
+  => ToCBORGroup (TxOut crypto)
  where
-  toCBOR (TxOut addr coin) =
-    encodeListLen 2
-      <> toCBOR addr
-      <> toCBOR coin
+  toCBORGroup (TxOut addr coin) =
+       toCBORGroup addr
+    <> toCBOR coin
+  listLen (TxOut addr coin) = listLen addr + 1
 
 instance
   Crypto crypto
@@ -370,48 +378,43 @@ instance ( Crypto crypto) =>
         pure $ RequireMOf m msigs
       _ -> error "pattern no supported"
 
-instance (Typeable crypto, Crypto crypto)
-  => ToCBOR (Credential crypto) where
-  toCBOR = \case
-    ScriptHashObj hs ->
-      encodeListLen 2
-      <> toCBOR (0 :: Word8)
-      <> toCBOR hs
-    KeyHashObj kh ->
-      encodeListLen 2
-      <> toCBOR (1 :: Word8)
-      <> toCBOR kh
-    GenesisHashObj kh ->
-      encodeListLen 2
-      <> toCBOR (2 :: Word8)
-      <> toCBOR kh
+
+instance (Typeable crypto, Crypto crypto) 
+  => ToCBORGroup (Credential crypto) where
+  listLen _ = 2
+  toCBORGroup = \case
+    KeyHashObj     kh -> toCBOR (0 :: Word8) <> toCBOR kh
+    ScriptHashObj  hs -> toCBOR (1 :: Word8) <> toCBOR hs
+    GenesisHashObj kh -> toCBOR (2 :: Word8) <> toCBOR kh
 
 instance
   (Typeable crypto, Crypto crypto)
-  => ToCBOR (Addr crypto)
+  => ToCBORGroup (Addr crypto)
  where
-  toCBOR = \case
+  toCBORGroup = \case
     AddrBase pay stake ->
-      encodeListLen 3
-        <> toCBOR (0 :: Word8)
-        <> toCBOR pay
-        <> toCBOR stake
-    AddrEnterprise pay ->
-      encodeListLen 2
-        <> toCBOR (1 :: Word8)
-        <> toCBOR pay
+        toCBOR (0 :: Word8)
+        <> toCBORGroup pay
+        <> toCBORGroup stake
     AddrPtr pay stakePtr ->
-      encodeListLen 3
-        <> toCBOR (2 :: Word8)
-        <> toCBOR pay
-        <> toCBOR stakePtr
+        toCBOR (1 :: Word8)
+        <> toCBORGroup pay
+        <> toCBORGroup stakePtr
+    AddrEnterprise pay ->
+        toCBOR (2 :: Word8)
+        <> toCBORGroup pay
 
-instance ToCBOR Ptr where
-  toCBOR (Ptr sl txIx certIx) =
-    encodeListLen 3
-      <> toCBOR sl
+  listLen (AddrBase x y)     = 1 + listLen x + listLen y
+  listLen (AddrPtr x y )     = 1 + listLen x + listLen y
+  listLen (AddrEnterprise x) = 1 + listLen x
+
+
+instance ToCBORGroup Ptr where
+  toCBORGroup (Ptr sl txIx certIx) =
+         toCBOR sl
       <> toCBOR txIx
       <> toCBOR certIx
+  listLen _ = 3
 
 instance Crypto crypto =>
   ToCBOR (Delegation crypto) where

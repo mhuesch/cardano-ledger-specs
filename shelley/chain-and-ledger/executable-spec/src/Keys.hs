@@ -229,6 +229,7 @@ newtype DiscKeyHash (discriminator :: KeyDiscriminator) crypto =
 deriving instance (Crypto crypto, Typeable disc) => ToCBOR (DiscKeyHash disc crypto)
 
 type KeyHash crypto = DiscKeyHash 'Regular crypto
+{-# COMPLETE KeyHash #-}
 pattern KeyHash
   :: Hash (HASH crypto) (VerKeyDSIGN (DSIGN crypto))
   -> DiscKeyHash 'Regular crypto

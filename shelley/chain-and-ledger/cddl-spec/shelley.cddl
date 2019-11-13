@@ -80,6 +80,7 @@ pointer = (uint, uint, uint)
 credential =
   (  0, keyhash
   // 1, scripthash
+  // 2, genesishash
   )
 
 coin = uint
