@@ -26,7 +26,7 @@ where
 import           Data.Word                      ( Word64 )
 import           Numeric.Natural                ( Natural )
 import           GHC.Generics                   ( Generic )
-import           Cardano.Binary                 ( ToCBOR )
+import           Cardano.Binary                 (ToCBOR(..))
 import           Cardano.Prelude                ( NoUnexpectedThunks(..) )
 
 import qualified Ledger.Core                   as Byron
